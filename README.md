@@ -18,7 +18,7 @@ whether police activity tracks measured crime or diverges from it.
 | 5c — Enforcement panel | done |
 | 5d — Per-capita rates | blocked on ACS demographics (needs a Census API key) |
 | 6 — Spatial models | done |
-| 7 — Models and maps | not started |
+| 7 — Figures | done |
 
 ## Quickstart
 
@@ -237,6 +237,11 @@ src/
     build_panel.py       Phase 5c runner
     hit_rate.py          outcome test: Wilson CIs, two-proportion tests, strata
     build_hit_rate.py    Phase 5b runner
+  viz/
+    style.py             one palette, type scale and map convention
+    maps.py              coverage map, choropleths, LISA
+    charts.py            trends, hit rates, elasticity
+    build_figures.py     Phase 7 runner -> reports/figures
   bias/
     spatial.py           Queen/KNN weights, Moran's I, LM tests, lag + error models
     build_spatial.py     Phase 6 runner

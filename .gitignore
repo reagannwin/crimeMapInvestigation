@@ -8,3 +8,6 @@ data/processed/*
 .ipynb_checkpoints/
 .DS_Store
 .pytest_cache/
+
+# Figures are regenerable from data/processed
+reports/figures/*.png
