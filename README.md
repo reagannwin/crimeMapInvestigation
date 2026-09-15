@@ -14,7 +14,8 @@ whether police activity tracks measured crime or diverges from it.
 | 3 — Joins: key validation + initiation recovery | done |
 | 4 — ShotSpotter coverage mask | done |
 | 5a — Gunfire event de-duplication | done |
-| 5b — Feature panel | blocked on ACS demographics (needs a Census API key) |
+| 5b — Search hit-rate (outcome) test | done |
+| 5c — Feature panel | blocked on ACS demographics (needs a Census API key) |
 | 6 — Bias diagnostics | not started |
 | 7 — Models and maps | not started |
 
@@ -120,6 +121,29 @@ across covered neighbourhoods** — from 6.0% in Lind - Bohanon to 23.9% in
 Powderhorn Park. This is the project's core signal: the same objective
 denominator, the same sensor footprint, very different propensity to call.
 
+**`preRace` is unusable despite being the theoretically correct variable.**
+Perceived race is 68–74% `Unknown` from 2018–2022. The 2024 recording change
+cut that to 7.6% but moved the mass into `Other` (41.6%), which is not a group.
+Recorded `race` is far better — `Unknown` falls to 0.0% from 2024 — so the hit-
+rate work uses recorded race and reports perceived race only as sensitivity.
+
+**Black drivers are searched ~2.4x as often and those searches yield arrests
+less often.** 2024–2026: search rate 16.7% vs 7.6%, arrest-given-search 44.2%
+vs 51.7% (−7.5 pp, p=0.003). Under the outcome test a lower yield from more
+searching implies a lower evidentiary bar. The sign holds in **all 24**
+arrest-based specifications (−5.3 to −11.8 pp).
+
+**The deficit is confined to discretionary stops.** Stratifying by initiation:
+−9.4 pp in officer-initiated stops, **+3.6 pp in 911-dispatched stops**. When a
+call determines the stop, the gap reverses. That isolates discretion as the
+mechanism — a difference in underlying offending would move both alike. It is
+also why the pooled number alone should not be quoted.
+
+**Citation-based hit rates do not replicate the arrest-based result**
+(median +1.1 pp). A traffic citation is not evidence a search succeeded, so
+booking is the defensible measure, but the divergence is reported rather than
+buried.
+
 ## Layout
 
 ```
@@ -140,6 +164,9 @@ src/
     validate_keys.py     Phase 3  key validation + initiation recovery
     events.py            spatio-temporal clustering, chaining + null-model checks
     build_events.py      Phase 5a runner
+  features/
+    hit_rate.py          outcome test: Wilson CIs, two-proportion tests, strata
+    build_hit_rate.py    Phase 5b runner
   bias/
     sensor_footprint.py  coverage mask, evidence guard, parameter sweep
     build_footprint.py   Phase 4 runner

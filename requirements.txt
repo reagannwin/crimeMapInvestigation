@@ -8,5 +8,6 @@ pyproj==3.8.0
 pytest==9.1.1
 requests==2.34.2
 scikit-learn==1.9.1
+scipy==1.18.1
 shapely==2.1.2
 statsmodels==0.15.0
