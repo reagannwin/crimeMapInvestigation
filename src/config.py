@@ -71,7 +71,22 @@ MATCH_WINDOW_MIN = (-5, 15)
 MATCH_WINDOW_SWEEP = ((-5, 5), (-5, 15), (-10, 30))
 
 # Gunfire-event de-duplication (DBSCAN over projected coords + time).
+# Two radii, because de-duplicating within a source and linking across sources
+# are different problems:
+#
+#   DEDUP   - collapsing repeat records of one burst. Tight, conservative.
+#   LINKAGE - pairing a sensor fix with the 911 call about the same gunfire.
+#             Must absorb localisation error: ShotSpotter reports an estimated
+#             acoustic position while a caller reports their own address or
+#             the nearest cross-street, so the same event lands hundreds of
+#             metres apart. Measured: co-detection rises 6.0% -> 11.3% going
+#             from 150 m to 400 m, while an 8x wider TIME window moves it only
+#             6.0% -> 6.6%. Space is the binding constraint, not time.
+#
+# 400 m is the ceiling: chaining stays controlled there (largest cluster 9
+# records, no cluster exceeding 3x the radius) and degrades at 600 m.
 EVENT_CLUSTER_RADIUS_M = 150
+EVENT_LINKAGE_RADIUS_M = 400
 EVENT_CLUSTER_WINDOW_MIN = 10
 
 # --------------------------------------------------------------------------

@@ -13,7 +13,8 @@ whether police activity tracks measured crime or diverges from it.
 | 2 — Clean: names, coordinates, timezones | done |
 | 3 — Joins: key validation + initiation recovery | done |
 | 4 — ShotSpotter coverage mask | done |
-| 5 — Feature panel | blocked on ACS demographics (needs a Census API key) |
+| 5a — Gunfire event de-duplication | done |
+| 5b — Feature panel | blocked on ACS demographics (needs a Census API key) |
 | 6 — Bias diagnostics | not started |
 | 7 — Models and maps | not started |
 
@@ -97,6 +98,28 @@ nineteen years. `coverage_by_neighborhood` therefore cross-checks against a
 direct activation count and downgrades anything below 50, flagged in
 `evidence_downgraded`.
 
+**Gunfire records are not gunfire events.** Every row in `Shots_Fired` carries
+a unique incident number, so one burst that trips a sensor and draws three 911
+calls appears as four records. Counting rows counts *reporting*, not gunfire —
+which inverts the signal. `src/join/events.py` clusters records in space and
+time: 108,800 records collapse to 95,826 events.
+
+**Sensor-to-human linkage needs a wider radius than de-duplication.** Widening
+the time window 8x moves co-detection only 6.0% -> 6.6%, while widening the
+radius 150 m -> 400 m moves it 6.0% -> 11.3%. Space is the binding constraint,
+because ShotSpotter reports an estimated acoustic position while a caller
+reports their own address. Hence two radii in config: 150 m for dedup, 400 m
+for cross-source linkage.
+
+**The matches are real, not coincidence.** A permutation test shifting every
+human report by a random offset gives a null co-detection rate of 0.22%
+against an observed 11.33% — about 98% of matches are genuine.
+
+**11.4% of sensor-detected gunfire draws a 911 call, and the rate varies 4x
+across covered neighbourhoods** — from 6.0% in Lind - Bohanon to 23.9% in
+Powderhorn Park. This is the project's core signal: the same objective
+denominator, the same sensor footprint, very different propensity to call.
+
 ## Layout
 
 ```
@@ -115,6 +138,8 @@ src/
     build_census.py      Phase 1c runner (needs CENSUS_API_KEY)
   join/
     validate_keys.py     Phase 3  key validation + initiation recovery
+    events.py            spatio-temporal clustering, chaining + null-model checks
+    build_events.py      Phase 5a runner
   bias/
     sensor_footprint.py  coverage mask, evidence guard, parameter sweep
     build_footprint.py   Phase 4 runner
