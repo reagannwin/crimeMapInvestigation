@@ -161,6 +161,23 @@ Officer-initiated stops rose 82% while dispatched stops fell 14%, so the growth
 is discretionary rather than demand-driven. `proactive_per_reactive` went 0.60
 to 1.28.
 
+**That holds under both initiation definitions.** 23-31% of stops carry a blank
+`reason`; recovering them via the 911 join (`--imputed-initiation`) strengthens
+the result rather than weakening it — proactive **+105.8%** against +82.3%
+observed, and the proactive share reaches **58.9%** of all stops by 2025.
+
+| 2021→2025 | observed | imputed |
+|---|---:|---:|
+| stops, total | +36.2% | +36.2% |
+| stops, proactive | +82.3% | **+105.8%** |
+| stops, reactive | −14.0% | −8.3% |
+| proactive per reactive | +111.9% | +124.5% |
+
+**The imputation is confined to the 911 window.** "No match" only means "not
+community-initiated" where a match was possible. The extract begins 2020-07, so
+applying the rule earlier labelled **45,104 stops proactive — 100% of them**,
+with no possibility of the other answer. Outside the window the label stays NA.
+
 **Use of force has two recording breaks and must not be compared across them.**
 Monthly incidents fall 499 (Dec 2022) to 153 (Jan 2023) overnight — a level
 break — and rows per incident jump 4.3 to 28.8 in 2024, a granularity change.

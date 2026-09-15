@@ -14,6 +14,8 @@ two police-activity or crime measures rather than a per-capita rate.
 """
 from __future__ import annotations
 
+import argparse
+
 import pandas as pd
 
 from src import config
@@ -21,18 +23,33 @@ from src.features import panel as pn
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument(
+        "--imputed-initiation", action="store_true",
+        help="recover the 26.9%% of stops with a blank `reason` by matching "
+             "them against the 911 extract, instead of leaving them unlabelled",
+    )
+    args = ap.parse_args()
+
     config.DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 250)
 
-    sources = pn.load_sources()
-    panel, report = pn.build_panel(**sources)
+    suffix = "_imputed" if args.imputed_initiation else ""
+    print(f">> initiation: {'imputed' if args.imputed_initiation else 'observed only'}")
+
+    sources = pn.load_sources(with_imputed_initiation=args.imputed_initiation)
+    panel, report = pn.build_panel(
+        **sources, use_imputed_initiation=args.imputed_initiation
+    )
     print(f">> {report}")
 
-    panel.to_parquet(config.DATA_PROCESSED / "enforcement_panel.parquet", index=False)
+    panel.to_parquet(
+        config.DATA_PROCESSED / f"enforcement_panel{suffix}.parquet", index=False
+    )
 
     annual = pn.annual_summary(panel)
     annual.to_parquet(
-        config.DATA_PROCESSED / "enforcement_annual.parquet", index=False
+        config.DATA_PROCESSED / f"enforcement_annual{suffix}.parquet", index=False
     )
     years = sorted(int(y) for y in annual["year"].unique())
     print(f"   annual summary: {len(annual):,} neighbourhood-years, {years}")
@@ -51,7 +68,7 @@ def main() -> int:
     citywide["proactive_per_reactive"] = (
         citywide["stops_proactive"] / citywide["stops_reactive"]
     ).round(3)
-    citywide.to_csv(config.DATA_PROCESSED / "enforcement_citywide.csv")
+    citywide.to_csv(config.DATA_PROCESSED / f"enforcement_citywide{suffix}.csv")
 
     print("\n>> citywide")
     print(citywide.to_string())
@@ -93,9 +110,11 @@ def main() -> int:
     for line in (
         "use of force has TWO recording breaks (2023-01 level, 2024-01 "
         "granularity) and must not be compared across them -- see force_regime",
-        "`initiation` is the observed field: 26.9% of stops are blank, so "
-        "proactive + reactive < total. Rebuild with use_imputed_initiation=True "
-        "to use the 911-join recovery instead",
+        ("proactive + reactive < total: 23-31% of stops carry a blank `reason`. "
+         "Rerun with --imputed-initiation to recover them"
+         if not args.imputed_initiation else
+         "initiation is imputed inside the 911 window (2020-07 onward) and left "
+         "NA outside it, where no match is possible and 'no match' means nothing"),
         "2021 is the first fully covered year because the 911 extract begins "
         "2020-07",
     ):

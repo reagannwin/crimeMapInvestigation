@@ -85,17 +85,28 @@ def impute_initiation(stops: pd.DataFrame, calls: pd.DataFrame) -> pd.DataFrame:
     ``reactive`` when they match a 911 record and ``proactive`` when they do
     not, with ``initiation_imputed`` marking every row where this fired so
     downstream analysis can drop or sensitivity-test them.
-    """
-    call_ids = set(calls["incident_id"].dropna())
-    out = stops.copy()
 
+    The imputation is confined to the window the 911 extract covers, and that
+    guard is essential rather than defensive. "No match" only means "not
+    community-initiated" where a match was possible in the first place. The
+    extract begins 2020-07, so applying the rule earlier labels *every*
+    blank-reason stop proactive: 45,104 stops, 100% of them, with no
+    possibility of the other answer. Outside the window the label stays NA.
+    """
+    out = stops.copy()
+    call_ids = set(calls["incident_id"].dropna())
+    lo, hi = calls["ts"].min(), calls["ts"].max()
+
+    in_window = out["ts"].between(lo, hi)
     blank = out["initiation"].isna()
     matched = out["incident_id"].isin(call_ids)
+    impute = blank & in_window
 
     out["initiation_filled"] = out["initiation"].astype("string")
-    out.loc[blank & matched, "initiation_filled"] = "reactive"
-    out.loc[blank & ~matched, "initiation_filled"] = "proactive"
-    out["initiation_imputed"] = blank
+    out.loc[impute & matched, "initiation_filled"] = "reactive"
+    out.loc[impute & ~matched, "initiation_filled"] = "proactive"
+    out["initiation_imputed"] = impute
+    out["initiation_unresolved"] = blank & ~in_window
 
     return out
 
@@ -122,7 +133,9 @@ def run(verbose: bool = True) -> dict[str, object]:
         before = stops["initiation"].notna().mean()
         after = filled["initiation_filled"].notna().mean()
         print(f"  observed: {100 * before:.1f}%   after imputation: {100 * after:.1f}%")
-        print(f"  imputed rows: {int(filled['initiation_imputed'].sum()):,}")
+        print(f"  imputed rows:    {int(filled['initiation_imputed'].sum()):,}")
+        print(f"  left unresolved: {int(filled['initiation_unresolved'].sum()):,} "
+              "(blank reason, outside the 911 window)")
 
     return {"rates": rates, "stops_filled": filled}
 

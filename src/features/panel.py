@@ -324,17 +324,36 @@ def annual_summary(panel: pd.DataFrame, *, min_crimes: int = 24) -> pd.DataFrame
     return agg
 
 
-def load_sources() -> dict[str, pd.DataFrame]:
+def load_sources(*, with_imputed_initiation: bool = False) -> dict[str, pd.DataFrame]:
+    """Load the interim frames the panel needs.
+
+    ``with_imputed_initiation`` adds ``initiation_filled`` by matching
+    blank-reason stops against the 911 extract (see
+    :func:`src.join.validate_keys.impute_initiation`). It needs the full
+    ``incident_id`` from both sides, so it is opt-in rather than always on.
+    """
     P = config.DATA_INTERIM
+    stops = pd.read_parquet(P / "stops.parquet")
+    calls = pd.read_parquet(
+        P / "calls_911.parquet",
+        columns=["ts", "month_start", "neighborhood", "is_police",
+                 "is_discretionary", "incident_id"],
+    )
+
+    if with_imputed_initiation:
+        from src.join.validate_keys import impute_initiation, normalise_incident_id
+
+        stops = impute_initiation(
+            stops.assign(incident_id=normalise_incident_id(stops["incident_id"])),
+            calls.assign(incident_id=normalise_incident_id(calls["incident_id"])),
+        )
+
     return {
-        "stops": pd.read_parquet(P / "stops.parquet"),
-        "calls": pd.read_parquet(
-            P / "calls_911.parquet",
-            columns=["ts", "month_start", "neighborhood", "is_police",
-                     "is_discretionary"],
-        ),
+        "stops": stops,
+        "calls": calls,
         "crime": pd.read_parquet(P / "crime_stats.parquet"),
         "force": pd.read_parquet(
-            P / "use_of_force.parquet", columns=["ts", "month_start", "neighborhood", "incident_id"]
+            P / "use_of_force.parquet",
+            columns=["ts", "month_start", "neighborhood", "incident_id"],
         ),
     }
