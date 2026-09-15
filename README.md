@@ -15,7 +15,8 @@ whether police activity tracks measured crime or diverges from it.
 | 4 — ShotSpotter coverage mask | done |
 | 5a — Gunfire event de-duplication | done |
 | 5b — Search hit-rate (outcome) test | done |
-| 5c — Feature panel | blocked on ACS demographics (needs a Census API key) |
+| 5c — Enforcement panel | done |
+| 5d — Per-capita rates | blocked on ACS demographics (needs a Census API key) |
 | 6 — Bias diagnostics | not started |
 | 7 — Models and maps | not started |
 
@@ -144,6 +145,32 @@ also why the pooled number alone should not be quoted.
 booking is the defensible measure, but the divergence is reported rather than
 buried.
 
+**Enforcement rose sharply while crime fell and demand stayed flat.** Citywide,
+2021 to 2025:
+
+| | change |
+|---|---:|
+| reported crime | **−5.4%** |
+| 911 calls (police) | +1.7% |
+| stops, total | +36.2% |
+| **stops, proactive** | **+82.3%** |
+| stops, reactive | −14.0% |
+| **stops per crime** | **+44.0%** |
+
+Officer-initiated stops rose 82% while dispatched stops fell 14%, so the growth
+is discretionary rather than demand-driven. `proactive_per_reactive` went 0.60
+to 1.28.
+
+**Use of force has two recording breaks and must not be compared across them.**
+Monthly incidents fall 499 (Dec 2022) to 153 (Jan 2023) overnight — a level
+break — and rows per incident jump 4.3 to 28.8 in 2024, a granularity change.
+Incident counts survive the second break; row counts do not. Flagged as
+`force_regime`.
+
+**Partial months are trimmed.** Every extract ends mid-month and a half month
+reads as a collapse (stops 2026-06: 1,037 against ~2,400; force 2026-09: 154
+against ~8,200). Left in, each becomes a fake downward trend.
+
 ## Layout
 
 ```
@@ -165,6 +192,8 @@ src/
     events.py            spatio-temporal clustering, chaining + null-model checks
     build_events.py      Phase 5a runner
   features/
+    panel.py             neighbourhood x month panel, EB smoothing, trimming
+    build_panel.py       Phase 5c runner
     hit_rate.py          outcome test: Wilson CIs, two-proportion tests, strata
     build_hit_rate.py    Phase 5b runner
   bias/
