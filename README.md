@@ -17,7 +17,7 @@ whether police activity tracks measured crime or diverges from it.
 | 5b — Search hit-rate (outcome) test | done |
 | 5c — Enforcement panel | done |
 | 5d — Per-capita rates | blocked on ACS demographics (needs a Census API key) |
-| 6 — Bias diagnostics | not started |
+| 6 — Spatial models | done |
 | 7 — Models and maps | not started |
 
 ## Quickstart
@@ -188,6 +188,30 @@ Incident counts survive the second break; row counts do not. Flagged as
 reads as a collapse (stops 2026-06: 1,037 against ~2,400; force 2026-09: 154
 against ~8,200). Left in, each becomes a fake downward trend.
 
+**Neighbourhoods are not independent observations, and OLS is misspecified.**
+Moran's I on OLS residuals is significant in **9 of 10** year x weights
+specifications. Robust LM tests select a spatial **error** model in most years.
+
+The textbook warning is that OLS standard errors will be too small. That is not
+what happens here — the spatial error model's standard errors come out
+*smaller*. The damage is in the **point estimates** instead.
+
+**Enforcement is sub-proportional to recorded crime.** In a log-log model
+(`log stops ~ log crimes + log calls + log area`), an elasticity of 1 means
+proportional. The spatial-error estimate runs **0.34–0.78 across 2021–2024**,
+below 1 in every specification and significantly so in most. A neighbourhood
+with twice the crime does not get twice the enforcement.
+
+Note the test is against `beta = 1`, not `beta = 0`. That enforcement rises
+with crime is uncontroversial; whether it rises *proportionally* is the
+question.
+
+**2025 breaks the model.** R² falls from 0.89–0.93 (2021–2024) to **0.46**,
+residual Moran's I jumps from ~0.16 to **0.62**, and the OLS elasticity leaps
+to 1.09. Crime, demand and size explain far less of where enforcement went in
+2025 than in any prior year — consistent with the proactive surge the panel
+found.
+
 ## Layout
 
 ```
@@ -214,6 +238,8 @@ src/
     hit_rate.py          outcome test: Wilson CIs, two-proportion tests, strata
     build_hit_rate.py    Phase 5b runner
   bias/
+    spatial.py           Queen/KNN weights, Moran's I, LM tests, lag + error models
+    build_spatial.py     Phase 6 runner
     sensor_footprint.py  coverage mask, evidence guard, parameter sweep
     build_footprint.py   Phase 4 runner
 ```
