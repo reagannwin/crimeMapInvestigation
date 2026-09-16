@@ -1,0 +1,444 @@
+<title>Policing Minneapolis by Neighborhood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@80..100,500..800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --plate: #faf8f5;
+    --ink: #16202a;
+    --muted: #5b6673;
+    --rule: #d5dbe1;
+    --blue: #1f4e79;
+    --blue-soft: #e3ecf5;
+    --red: #b3362b;
+    --red-soft: #f7e6e4;
+
+    --display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+    --measure: 66ch;
+    --wide: 980px;
+    --step--1: 0.86rem;
+    --step-0: 1.06rem;
+    --step-1: 1.3rem;
+    --step-2: 1.7rem;
+    --step-3: clamp(2rem, 1.4rem + 2.6vw, 3.1rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f151b;
+      --surface: #161f28;
+      --plate: #faf8f5;
+      --ink: #e5eaef;
+      --muted: #9aa6b2;
+      --rule: #2b3642;
+      --blue: #86b6e0;
+      --blue-soft: #1a2c3d;
+      --red: #e58a80;
+      --red-soft: #33201e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f151b;
+    --surface: #161f28;
+    --plate: #faf8f5;
+    --ink: #e5eaef;
+    --muted: #9aa6b2;
+    --rule: #2b3642;
+    --blue: #86b6e0;
+    --blue-soft: #1a2c3d;
+    --red: #e58a80;
+    --red-soft: #33201e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.62;
+    padding-inline: 16px;
+    padding-block: 0 64px;
+  }
+
+  .sheet {
+    max-width: var(--wide);
+    margin: 0 auto;
+    background: var(--surface);
+    border-inline: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .col {
+    max-width: calc(var(--measure) + 64px);
+    margin: 0 auto;
+    padding-inline: clamp(18px, 4vw, 32px);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--display);
+    font-stretch: 88%;
+    line-height: 1.1;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: var(--step-3); font-weight: 750; letter-spacing: -0.01em; }
+  h2 { font-size: var(--step-2); font-weight: 700; }
+  h3 { font-size: var(--step-1); font-weight: 650; }
+  p { margin: 0; }
+  a { color: var(--blue); text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px; }
+  strong { font-weight: 600; }
+
+  .label {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* Masthead */
+  .masthead {
+    border-top: 6px solid var(--blue);
+    padding-block: 40px 28px;
+    display: grid;
+    gap: 16px;
+  }
+  .dek {
+    font-size: var(--step-1);
+    line-height: 1.45;
+    color: var(--muted);
+    max-width: 58ch;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Key figures */
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-block: 8px 0;
+  }
+  .figure {
+    padding: 18px clamp(14px, 2.4vw, 22px);
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    border-right: 1px solid var(--rule);
+  }
+  .figure:last-child { border-right: 0; }
+  .figure b {
+    font-family: var(--display);
+    font-stretch: 85%;
+    font-size: 2.1rem;
+    font-weight: 750;
+    line-height: 1;
+    color: var(--blue);
+    font-variant-numeric: tabular-nums;
+  }
+  .figure span { font-size: var(--step--1); line-height: 1.4; }
+  @media (max-width: 560px) {
+    .figure { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .figure:last-child { border-bottom: 0; }
+  }
+
+  /* Sections */
+  section { padding-block: 44px 8px; }
+  section + section { border-top: 1px solid var(--rule); }
+  .prose { display: grid; gap: 16px; }
+  /* Grid items default to min-width:auto, which lets the table wrapper grow to
+     the table's width instead of scrolling -- the page then scrolls sideways. */
+  .prose > * { min-width: 0; }
+  .figures > *, .stat-row > *, .pair > * { min-width: 0; }
+  .prose h2 { margin-bottom: 2px; }
+  .eyebrow { margin-bottom: -6px; color: var(--blue); }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .stat-row div {
+    padding: 12px 14px;
+    display: grid;
+    gap: 2px;
+    border-right: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .stat-row div:last-child { border-right: 0; }
+  .stat-row b { font-family: var(--mono); font-size: 1.25rem; font-weight: 500; }
+  .stat-row .up { color: var(--red); }
+  .stat-row .down { color: var(--blue); }
+  @media (max-width: 560px) {
+    .stat-row div { border-right: 0; border-bottom: 1px solid var(--rule); }
+    .stat-row div:last-child { border-bottom: 0; }
+  }
+
+  /* Exhibits break out of the reading column */
+  .exhibit {
+    margin: 26px auto 8px;
+    max-width: calc(var(--wide) - 48px);
+    padding-inline: clamp(12px, 3vw, 24px);
+  }
+  .exhibit img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--plate);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+  }
+  .exhibit.narrow { max-width: 620px; }
+  .exhibit figcaption {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    margin-top: 8px;
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+  .exhibit figcaption .label { flex: none; }
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+
+  .caveat {
+    font-size: var(--step--1);
+    color: var(--muted);
+    border-left: 2px solid var(--rule);
+    padding-left: 12px;
+  }
+
+  /* Data table */
+  .table-wrap { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+  }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-family: var(--mono); font-weight: 500; font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  td.sig { font-weight: 600; color: var(--ink); }
+  td.ns { color: var(--muted); }
+  tbody th { font-weight: 500; }
+  tr.hl td, tr.hl th { background: var(--blue-soft); }
+
+  /* Retraction */
+  .retraction {
+    border: 1px solid var(--red);
+    background: var(--red-soft);
+    border-radius: 4px;
+    padding: 16px 18px;
+    display: grid;
+    gap: 8px;
+  }
+  .retraction .label { color: var(--red); }
+
+  /* Limits list */
+  .limits { margin: 0; padding-left: 1.1em; display: grid; gap: 8px; }
+  .limits li::marker { color: var(--blue); }
+
+  dl.sources { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; font-size: var(--step--1); }
+  dl.sources dt { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); }
+  dl.sources dd { margin: 0; color: var(--muted); }
+  @media (max-width: 560px) {
+    dl.sources { grid-template-columns: 1fr; gap: 2px; }
+    dl.sources dd { margin-bottom: 8px; }
+  }
+
+  footer { padding-block: 28px 36px; border-top: 1px solid var(--rule); color: var(--muted); font-size: var(--step--1); display: grid; gap: 6px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color .15s ease; }
+  }
+</style>
+
+<article class="sheet">
+  <header class="col masthead">
+    <p class="label">Independent analysis · City of Minneapolis open data</p>
+    <h1>Who gets stopped, and does it follow the crime?</h1>
+    <p class="dek">Five years of police stops, 911 calls, gunfire detections and reported crime across Minneapolis's 87 neighborhoods, set against Census demographics.</p>
+    <div class="meta">
+      <span class="label">Years analysed <span class="num">2021–2025</span></span>
+      <span class="label">Data snapshot <span class="num">15 Sep 2026</span></span>
+      <span class="label">Unit <span class="num">87 neighborhoods</span></span>
+    </div>
+  </header>
+
+  <div class="figures" aria-label="Key figures">
+    <div class="figure"><b>+82%</b><span>officer-initiated stops, 2021→2025, while reported crime fell 5.4%</span></div>
+    <div class="figure"><b>≈1.0</b><span>crime elasticity of stops through 2024: stops scaled with crime</span></div>
+    <div class="figure"><b>+23%</b><span>stops per 10-point higher Black population share in 2025, beyond crime</span></div>
+    <div class="figure"><b>44 vs 52</b><span>arrests per 100 searches, Black vs white drivers</span></div>
+    <div class="figure"><b>22%</b><span>of the city's area covered by ShotSpotter sensors</span></div>
+  </div>
+
+  <!-- Enforcement trend -->
+  <section id="trend">
+    <div class="col prose">
+      <p class="label eyebrow">Enforcement over time</p>
+      <h2>Stops rose while crime fell, and the growth came from stops officers chose to make</h2>
+      <p>Between 2021 and 2025, reported serious crime in the city fell and police 911 calls held flat. Total stops still rose by more than a third. The increase was driven by <strong>officer-initiated</strong> stops (traffic, equipment and investigative); stops that a 911 call sent officers to actually declined.</p>
+      <div class="stat-row" role="list">
+        <div role="listitem"><span class="label">Reported crime</span><b class="num down">−5.4%</b></div>
+        <div role="listitem"><span class="label">Police 911 calls</span><b class="num">+1.7%</b></div>
+        <div role="listitem"><span class="label">All stops</span><b class="num up">+36.2%</b></div>
+        <div role="listitem"><span class="label">Officer-initiated</span><b class="num up">+82.3%</b></div>
+        <div role="listitem"><span class="label">911-dispatched</span><b class="num down">−14.0%</b></div>
+      </div>
+      <p class="caveat">A quarter of stop records leave the reason blank. Recovering those by matching them to 911 records makes the rise in officer-initiated stops larger, not smaller: <span class="num">+105.8%</span>, reaching 59% of all stops by 2025.</p>
+    </div>
+    <figure class="exhibit">
+      <img src="figures/04_enforcement_trend.png" alt="Line chart indexed to 2021 = 100. By 2025 officer-initiated stops reach 182, total stops 136, 911 calls 102, reported crime 95 and 911-dispatched stops 86." width="1731" height="1202" loading="lazy">
+      <figcaption><span class="label">Exhibit</span><span>Citywide totals indexed to 2021. Stop reason as recorded.</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- Race and stops -->
+  <section id="race">
+    <div class="col prose">
+      <p class="label eyebrow">Race and neighborhood stops</p>
+      <h2>At the same crime rate, neighborhoods with more Black residents were stopped more</h2>
+      <p>In 2025, excluding the downtown core, the city's neighborhoods split into four equal groups by the share of residents who are Black. The two groups with the highest shares recorded exactly the same crime per resident, <span class="num">56.8</span> per 1,000. The group that is 42% Black nonetheless saw <span class="num">84</span> stops per 1,000 residents, against <span class="num">60</span> in the group that is 18% Black: <strong>40% more</strong>.</p>
+    </div>
+    <figure class="exhibit">
+      <img src="figures/10_per_capita_bands.png" alt="Grouped bar chart for 2025. Recorded crimes and police stops per 1,000 residents by Black-population quarter: lowest 31 and 26, second 44 and 41, third 57 and 60, highest 57 and 84." width="1944" height="1132" loading="lazy">
+      <figcaption><span class="label">Exhibit</span><span>Per 1,000 residents, 2025. ACS 2019–2023 population; Downtown West, Downtown East and North Loop excluded.</span></figcaption>
+    </figure>
+    <div class="col prose">
+      <p>A regression across all 87 neighborhoods asks the same question while holding recorded crime, population, renter share and land area fixed, and accounting for the fact that neighboring areas influence one another. The gap has grown every year. It is statistically clear in 2025 under every check; in 2024 it is present but cannot be separated from income.</p>
+      <div class="table-wrap">
+        <table>
+          <caption class="label" style="caption-side: top; text-align: left; padding-bottom: 8px;">Extra stops per 10-point higher Black population share</caption>
+          <thead>
+            <tr><th scope="col">Check</th><th scope="col">2021</th><th scope="col">2022</th><th scope="col">2023</th><th scope="col">2024</th><th scope="col">2025</th></tr>
+          </thead>
+          <tbody>
+            <tr class="hl"><th scope="row">Main model</th><td class="ns">2%</td><td class="ns">4%</td><td class="ns">6%</td><td class="sig">8%</td><td class="sig">23%</td></tr>
+            <tr><th scope="row">+ median income</th><td class="ns">2%</td><td class="ns">4%</td><td class="ns">3%</td><td class="ns">6%</td><td class="sig">28%</td></tr>
+            <tr><th scope="row">Alternative neighbor definition</th><td class="ns">2%</td><td class="ns">5%</td><td class="ns">5%</td><td class="sig">7%</td><td class="sig">20%</td></tr>
+            <tr><th scope="row">Downtown core excluded</th><td class="ns">3%</td><td class="ns">4%</td><td class="ns">7%</td><td class="sig">9%</td><td class="sig">26%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caveat">Bold values are statistically significant at the 5% level; grey values are not. These are associations between neighborhoods, not evidence that race causes any individual stop. The 2025 model fits worst of the five years, even though it carries the strongest result.</p>
+    </div>
+    <figure class="exhibit">
+      <img src="figures/09_black_share_effect.png" alt="Dot chart with 95% intervals. The estimated extra stops per 10-point higher Black share rise from about 2% in 2021 to about 8% in 2024 and 20–28% in 2025 across four model checks." width="1738" height="1167" loading="lazy">
+      <figcaption><span class="label">Exhibit</span><span>Each dot is one model check; bars are 95% intervals.</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- Proportionality, with retraction -->
+  <section id="proportional">
+    <div class="col prose">
+      <p class="label eyebrow">Stops and crime</p>
+      <h2>Through 2024, stops scaled with crime</h2>
+      <p>Across neighborhoods, a place with twice the recorded crime had about twice the stops. The crime elasticity of stops sat between <span class="num">0.97</span> and <span class="num">1.06</span> in every year from 2021 to 2024, never distinguishable from 1. It dips to <span class="num">0.72</span> in 2025, but the uncertainty around that estimate still reaches 1, so that is not a confirmed break.</p>
+      <div class="retraction" role="note">
+        <p class="label">Correction to an earlier draft</p>
+        <p>An earlier version of this analysis reported that stops grew <em>more slowly</em> than crime (elasticity 0.34–0.78). That model used 911 call volume as a control. Calls are largely a result of crime and move with it almost exactly (correlation 0.92), so they absorbed most of crime's effect. With population in their place, the result above holds and the earlier claim is withdrawn. The dotted line below shows how far the flawed model was off.</p>
+      </div>
+    </div>
+    <figure class="exhibit">
+      <img src="figures/07_crime_elasticity.png" alt="Line chart of crime elasticity by year. The main model stays near 1 from 2021 to 2024 and falls to 0.72 in 2025 with an interval reaching 1. A dotted retracted line sits lower, between 0.36 and 0.78." width="1642" height="1132" loading="lazy">
+      <figcaption><span class="label">Exhibit</span><span>1.0 means stops rise in proportion to crime. Shaded band is the 95% interval.</span></figcaption>
+    </figure>
+  </section>
+
+  <!-- Search outcomes -->
+  <section id="searches">
+    <div class="col prose">
+      <p class="label eyebrow">Search outcomes</p>
+      <h2>Black drivers were searched twice as often, and those searches found less</h2>
+      <p>If officers need the same level of suspicion before searching anyone, searches of every group should turn something up at similar rates. From 2024 to 2026, Black people who were stopped were searched <span class="num">2.2</span> times as often as white people (<span class="num">16.7%</span> vs <span class="num">7.6%</span>), yet those searches ended in arrest less often: <span class="num">44.2</span> vs <span class="num">51.7</span> per 100 searches. A lower yield from more searching suggests a lower bar for searching.</p>
+      <p>The gap appears only where officers had discretion. Across 2018–2026, in stops officers initiated, Black drivers' searches led to arrest <span class="num">9.4</span> points less often; in stops a 911 call sent them to, the gap reverses to <span class="num">+3.6</span>.</p>
+    </div>
+    <figure class="exhibit">
+      <img src="figures/06_hit_rate.png" alt="Left: arrests per 100 searches by race with 95% intervals; Black 44, white 52, with Black searched 16.7% of the time versus 7.6%. Right: bars showing a −9.4 point gap in officer-initiated stops and +3.6 points in 911-dispatched stops." width="2000" height="1087" loading="lazy">
+      <figcaption><span class="label">Exhibit</span><span>An arrest counts as a successful search. Race as recorded after the stop.</span></figcaption>
+    </figure>
+    <div class="col prose">
+      <p class="caveat">The direction holds in all 24 arrest-based versions of the test. Counting citations instead of arrests does not reproduce it, and a traffic citation says little about whether a search found anything. An arrest may sometimes come before the search rather than result from it; the records cannot tell these apart.</p>
+    </div>
+  </section>
+
+  <!-- Gunfire reporting -->
+  <section id="gunfire">
+    <div class="col prose">
+      <p class="label eyebrow">Gunfire and 911</p>
+      <h2>Most gunfire that sensors detect never draws a 911 call, and willingness to call varies fourfold</h2>
+      <p>ShotSpotter sensors give an independent count of gunfire in the areas they cover. Linking each detection to any 911 call within 400 metres and ten minutes shows that only <span class="num">11.4%</span> of detected gunfire was also called in. That share ranges from <span class="num">6.0%</span> in Lind-Bohanon to <span class="num">23.9%</span> in Powderhorn Park. Because the sensors apply the same yardstick across these neighborhoods, the gap points mainly to differences in readiness to call, rather than in how much shooting there is.</p>
+    </div>
+    <div class="exhibit">
+      <div class="pair">
+        <figure style="margin:0">
+          <img src="figures/01_sensor_coverage.png" alt="Map of Minneapolis neighborhoods. Twenty neighborhoods in North Minneapolis and the Phillips–Powderhorn area are shaded as covered by ShotSpotter; the rest of the city is not. Downtown West is called out with 293 confirmed shootings and 2 sensor detections." width="1448" height="1907" loading="lazy">
+          <figcaption><span class="label">Exhibit</span><span>Sensor coverage, derived from 37,896 detections.</span></figcaption>
+        </figure>
+        <figure style="margin:0">
+          <img src="figures/02_reporting_rate.png" alt="Horizontal bar chart of the share of sensor-detected gunfire that drew a 911 call in 20 covered neighborhoods, from 6.0% in Lind-Bohanon to 23.9% in Powderhorn Park." width="1783" height="1447" loading="lazy">
+          <figcaption><span class="label">Exhibit</span><span>Covered neighborhoods with at least 20 detected events.</span></figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="col prose">
+      <p class="caveat">Coverage matters. The sensors cover 20 of 87 neighborhoods (22% of the city's area) but hold 97.6% of all detections. Downtown West has the city's fifth-highest count of confirmed shootings and two sensor detections since 2007, so any citywide comparison built on sensor counts would wrongly read downtown as quiet. Only covered neighborhoods are used here. Matching a random time-shifted copy of the calls gives a 0.22% match rate, so the linked pairs are real, not coincidence.</p>
+    </div>
+  </section>
+
+  <!-- Method and limits -->
+  <section id="method">
+    <div class="col prose">
+      <p class="label eyebrow">How this was done</p>
+      <h2>Method and limits</h2>
+      <p>All records were joined to Minneapolis's 87 neighborhood boundaries. Gunfire records were grouped into single events, since one burst of shots often produces several records. Census block-group estimates were apportioned to neighborhoods by area (interpolated city population <span class="num">426,269</span>). Neighborhood regressions use spatial models, because neighboring areas are not independent. Data problems found along the way were corrected before any result was reported:</p>
+      <ul class="limits">
+        <li><strong>"Shots fired" is not all sensor data.</strong> 58% of those records are 911 calls; only 35% come from sensors.</li>
+        <li><strong>Officers' perceived-race field is unusable.</strong> It is 68–74% "Unknown" before 2023, so race as recorded after the stop is used.</li>
+        <li><strong>Use-of-force records changed how they count twice</strong> (2023 and 2024), so force cannot be compared across those years.</li>
+        <li><strong>Downtown per-resident rates are misleading.</strong> Most people there don't live there; Downtown West runs 218 stops per 1,000 residents.</li>
+        <li><strong>Demographics are held fixed.</strong> Census figures are 2019–2023 estimates applied to every year.</li>
+        <li><strong>These are associations.</strong> None of the findings establishes why any individual stop or search happened.</li>
+      </ul>
+
+      <h3 style="margin-top:14px">Sources</h3>
+      <dl class="sources">
+        <dt>Incidents Reported 911</dt><dd>1,643,836 calls, Jul 2020 – Jul 2026</dd>
+        <dt>Police Stop Data</dt><dd>298,936 stops, Oct 2016 – Jun 2026</dd>
+        <dt>Police Use of Force</dt><dd>256,489 records, Dec 2021 – Sep 2026</dd>
+        <dt>Neighborhood Crime Stats</dt><dd>Monthly serious-crime counts by neighborhood, 2017–2026</dd>
+        <dt>Shots Fired</dt><dd>108,800 records, 2007–2026</dd>
+        <dt>Neighborhood boundaries</dt><dd>87 polygons, City of Minneapolis</dd>
+        <dt>American Community Survey</dt><dd>2019–2023 five-year estimates, 1,098 Hennepin County block groups</dd>
+      </dl>
+      <p class="caveat">City data are published under CC0 at opendata.minneapolismn.gov and are refreshed daily; this analysis uses a snapshot taken on 15 September 2026, recorded with checksums so the results can be reproduced.</p>
+    </div>
+  </section>
+
+  <footer class="col">
+    <p>Independent analysis. Not produced by or affiliated with the City of Minneapolis or the Minneapolis Police Department.</p>
+    <p class="label">crimeMapInvestigation · September 2026</p>
+  </footer>
+</article>
