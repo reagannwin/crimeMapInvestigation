@@ -29,13 +29,15 @@ is not subject to that policy.
 
 ```bash
 docker build -t crimemap:latest .
+scripts/docker-run.sh python -m src.ingest.snapshot      # once: freeze the CSVs
 scripts/docker-run.sh python -m pytest tests/ -q
 CENSUS_API_KEY=... scripts/docker-run.sh python -m src.ingest.build_census
 scripts/docker-run.sh python -m src.bias.build_spatial
 ```
 
 `scripts/docker-run.sh` mounts the project at `/app` and `~/Downloads`
-read-only at `/data/source` (override with `CRIME_SOURCE_DIR_HOST`). The Census
+read-only at `/data/source` (override with `CRIME_SOURCE_DIR_HOST`); only the
+snapshot step reads from Downloads. The Census
 key is forwarded from your shell at run time and never written to the image or
 any file.
 
@@ -48,11 +50,22 @@ python -m venv .venv
 .venv/Scripts/python.exe -m pytest tests/ -q
 ```
 
-`build_interim` reads the CSVs from `~/Downloads` (see `src/config.py`) and
-writes typed Parquet to `data/interim/`. Re-parsing the 344 MB 911 extract takes
+`build_interim` reads the CSVs from the snapshot in `data/raw/` and writes
+typed Parquet to `data/interim/`. It refuses to run if the snapshot no longer
+matches its manifest. Re-parsing the 344 MB 911 extract takes
 about 40 seconds; reading the Parquet takes about one.
 
 ## Data sources
+
+**The source CSVs are frozen in `data/raw/`.** The city refreshes these
+extracts daily, so a re-download is a different dataset and would not
+reproduce the numbers below. `python -m src.ingest.snapshot` copies the files
+from Downloads, verifies each copy, and records a SHA-256 in
+`data/raw/MANIFEST.json`. The CSVs (451 MB) are too large for git and are backed
+up by the synced project folder instead; the manifest is committed, so the repo
+always identifies the data behind its results. An existing snapshot is never
+replaced unless you pass `--refresh`, which logs the change in the manifest.
+`--verify` checks the snapshot at any time.
 
 | Source | Rows | Coverage | Role |
 |---|---:|---|---|
@@ -273,6 +286,7 @@ src/
     neighborhoods.py     87 canonical names; strict by default so new spellings fail loudly
     coordinates.py       null-island handling, bbox validation, projection to EPSG:26915
   ingest/
+    snapshot.py          freeze source CSVs into data/raw with checksums
     csv_sources.py       one typed loader per source, each returning a LoadResult
     build_interim.py     Phase 1  CSV -> Parquet, run once
     arcgis.py            paginated Feature Service client

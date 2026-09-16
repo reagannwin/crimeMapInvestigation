@@ -49,10 +49,8 @@ class LoadResult:
 
 
 def _src(key: str) -> Path:
-    path = config.SOURCE_DIR / config.SOURCE_FILES[key]
-    if not path.exists():
-        raise FileNotFoundError(f"missing source file for {key!r}: {path}")
-    return path
+    """Read from the frozen snapshot in data/raw, never from Downloads."""
+    return config.raw_path(key)
 
 
 def _to_local(series: pd.Series) -> pd.Series:

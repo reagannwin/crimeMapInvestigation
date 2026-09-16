@@ -19,6 +19,18 @@ def build(names: list[str] | None = None, *, strict_names: bool = True) -> int:
     targets = names or list(LOADERS)
     config.DATA_INTERIM.mkdir(parents=True, exist_ok=True)
 
+    # Refuse to build from a snapshot that no longer matches its manifest:
+    # that would publish numbers from data nobody can identify.
+    from src.ingest.snapshot import verify
+
+    problems = verify()
+    if problems:
+        print("snapshot problems -- run `python -m src.ingest.snapshot` first:",
+              file=sys.stderr)
+        for p in problems:
+            print(f"   {p}", file=sys.stderr)
+        return len(problems)
+
     failures = 0
     for name in targets:
         loader = LOADERS[name]

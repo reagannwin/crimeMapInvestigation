@@ -1,0 +1,53 @@
+{
+  "files": {
+    "calls_911": {
+      "bytes": 344841084,
+      "filename": "Incidents_Reported_911.csv",
+      "key": "calls_911",
+      "sha256": "e2e683e0d5bd2a72c1e1b6917d57412d9a425a2bee86d887e824f7d0fa26acde",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T17:39:38+00:00"
+    },
+    "crime_stats": {
+      "bytes": 2748409,
+      "filename": "NEIGHBORHOOD_CRIME_STATS.csv",
+      "key": "crime_stats",
+      "sha256": "4a6f14fd2c095be33136e4734b4466b42f1b6e60f06a918a52697f52f595179e",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T18:06:43+00:00"
+    },
+    "incidents_2026": {
+      "bytes": 5032508,
+      "filename": "Police_Incidents_2026.csv",
+      "key": "incidents_2026",
+      "sha256": "7d536f2b2f25eaeb9852d9faded4da207573ebcd81613f7804484eda29501c81",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T18:05:52+00:00"
+    },
+    "neighborhoods": {
+      "bytes": 7983,
+      "filename": "Minneapolis_Neighborhoods_-3137758889740763984.csv",
+      "key": "neighborhoods",
+      "sha256": "12ead1aff72d60463e1cfecdfcadd00d322be8f2b1c87e2199ae4d350c29bf80",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T18:06:34+00:00"
+    },
+    "stops": {
+      "bytes": 60162586,
+      "filename": "Police_Stop_Data.csv",
+      "key": "stops",
+      "sha256": "37a1559234186e92bab5ac3c4e91002c79f049081f20386ffeda00d2ef397315",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T18:00:05+00:00"
+    },
+    "use_of_force": {
+      "bytes": 59479515,
+      "filename": "Police_Use_of_Force.csv",
+      "key": "use_of_force",
+      "sha256": "da7ed350ac3451aa17549b45191e5a0830cab4648f658ef79596f5a4ce7808b1",
+      "snapshotted_at": "2026-09-16T17:14:48+00:00",
+      "source_modified_at": "2026-09-15T18:05:34+00:00"
+    }
+  },
+  "history": []
+}

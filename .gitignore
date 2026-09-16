@@ -5,6 +5,8 @@ data/raw/*
 data/interim/*
 data/processed/*
 !data/**/.gitkeep
+# The snapshot's checksums are small and identify the data behind the results.
+!data/raw/MANIFEST.json
 .ipynb_checkpoints/
 .DS_Store
 .pytest_cache/

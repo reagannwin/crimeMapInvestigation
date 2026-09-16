@@ -67,7 +67,7 @@ def normalise_key(name: str | None) -> str:
 @lru_cache(maxsize=1)
 def canonical_names() -> tuple[str, ...]:
     """The 87 authoritative BDNAME values, read from the polygon attribute table."""
-    path = config.SOURCE_DIR / config.SOURCE_FILES["neighborhoods"]
+    path = config.raw_path("neighborhoods")
     with path.open(encoding="utf-8-sig", newline="") as fh:
         names = {r["BDNAME"].strip() for r in csv.DictReader(fh) if r["BDNAME"].strip()}
     if len(names) != 87:
