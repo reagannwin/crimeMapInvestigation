@@ -124,3 +124,57 @@ class TestCharts:
         fig = charts.reporting_rate_chart(rates)
         labels = [t.get_text() for t in fig.axes[0].get_yticklabels()]
         assert labels == ["b", "c", "a"]
+
+
+class TestDemographicCharts:
+    def _diagnostics(self) -> pd.DataFrame:
+        rows = []
+        for year in (2024, 2025):
+            for variant in ("full", "full + income", "full, KNN weights",
+                            "full, no downtown", "calls (retracted)"):
+                rows.append({
+                    "year": year, "variant": variant,
+                    "crime_beta_error": 1.0, "crime_se_error": 0.1,
+                    "black_beta": 0.8, "black_se": 0.3,
+                })
+        return pd.DataFrame(rows)
+
+    def test_elasticity_chart_keeps_the_retracted_line_visible(self):
+        """The retraction is shown, not hidden, so the reader sees its size."""
+        fig = charts.elasticity_chart(self._diagnostics())
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert any("Retracted" in label for label in labels)
+
+    def test_elasticity_chart_does_not_overclaim_a_final_year_dip(self):
+        """An interval that still reaches 1 must be said to reach 1."""
+        fig = charts.elasticity_chart(self._diagnostics())
+        texts = " ".join(t.get_text() for t in fig.axes[0].texts)
+        assert "interval still reaches 1" in texts
+
+    def test_black_share_chart_plots_every_check(self):
+        fig = charts.black_share_chart(self._diagnostics())
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert len(labels) == 4
+
+    def _bands_annual(self, top_crime: float) -> pd.DataFrame:
+        n = 8
+        return pd.DataFrame({
+            "neighborhood": [f"n{i}" for i in range(n)],
+            "year": 2025,
+            "daytime_core": False,
+            "share_black_nh": np.linspace(0.01, 0.6, n),
+            "pop_total": 1000.0,
+            "stops_total": [20, 22, 40, 42, 60, 60, 84, 84],
+            "crimes": [30, 30, 44, 44, 57, 57, top_crime, top_crime],
+        })
+
+    def test_bands_title_is_computed_not_asserted(self):
+        fig = charts.per_capita_bands_chart(self._bands_annual(57), year=2025)
+        assert "Same crime rate, 40% more stops" in fig.axes[0].get_title(loc="left")
+
+    def test_bands_title_changes_when_crime_differs(self):
+        """The 'same crime rate' headline must not survive data that breaks it."""
+        fig = charts.per_capita_bands_chart(self._bands_annual(90), year=2025)
+        title = fig.axes[0].get_title(loc="left")
+        assert title, "read the left-aligned title; an empty string passes vacuously"
+        assert "Same crime rate" not in title

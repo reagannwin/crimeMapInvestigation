@@ -119,41 +119,147 @@ def hit_rate_chart(table: pd.DataFrame, by_initiation: pd.DataFrame):
 
 
 def elasticity_chart(diagnostics: pd.DataFrame):
-    """Crime elasticity by year against the proportionality line."""
-    d = diagnostics[diagnostics["weights"] == "queen"].set_index("year")
+    """Crime elasticity by year, model of record against the retracted spec.
+
+    The retracted line stays on the chart deliberately: it shows the reader
+    exactly how far a bad control moved the estimate.
+    """
+    d = diagnostics.set_index(["variant", "year"])
+    full = d.loc["full"]
+    calls = d.loc["calls (retracted)"]
 
     fig, ax = style.figure(9.0, 5.6)
     ax.axhline(1.0, color=style.MUTED, lw=1.2, ls="--", zorder=1)
-    ax.annotate("Proportional (elasticity = 1)", (d.index.min() - 0.12, 1.03),
-                fontsize=style.LABEL_SIZE, color=style.MUTED, va="bottom")
+    # Right end, where the model-of-record line has dropped below 1 and the
+    # label cannot collide with it.
+    ax.annotate("Proportional (elasticity = 1)", (full.index.max() + 0.15, 1.02),
+                fontsize=style.LABEL_SIZE, color=style.MUTED,
+                ha="right", va="bottom")
 
-    ax.plot(d.index, d["crime_beta_ols"], color=style.CATEGORICAL[5],
-            lw=1.6, marker="s", ms=6, ls=":", label="OLS (misspecified)")
-    ax.plot(d.index, d["crime_beta_error"], color=style.CATEGORICAL[0],
-            lw=2.4, marker="o", ms=7, label="Spatial error model")
+    lo = full["crime_beta_error"] - 1.96 * full["crime_se_error"]
+    hi = full["crime_beta_error"] + 1.96 * full["crime_se_error"]
+    ax.fill_between(full.index, lo, hi, color=style.CATEGORICAL[0], alpha=0.12,
+                    lw=0, label="95% interval")
+    ax.plot(full.index, full["crime_beta_error"], color=style.CATEGORICAL[0],
+            lw=2.4, marker="o", ms=7,
+            label="Controls: population, race, tenure, area")
+    ax.plot(calls.index, calls["crime_beta_error"], color=style.MUTED,
+            lw=1.4, marker="s", ms=5, ls=":",
+            label="Retracted: 911 calls as a control")
 
-    outlier = d.index.max()
-    ax.scatter([outlier], [d.loc[outlier, "crime_beta_ols"]],
-               s=190, facecolor="none", edgecolor=style.ACCENT, lw=1.8, zorder=4)
+    last = full.index.max()
+    last_hi = hi.loc[last]
+    # Say whether the final-year dip is distinguishable from 1, rather than
+    # letting a falling line imply a break the interval does not support.
+    verdict = "interval still reaches 1" if last_hi >= 1 else "below 1"
     ax.annotate(
-        "2025: model breaks down\nR² 0.46, residual Moran's I 0.62",
-        (outlier, d.loc[outlier, "crime_beta_ols"]),
-        xytext=(-14, 26), textcoords="offset points", ha="right",
+        f"{last}: {full.loc[last, 'crime_beta_error']:.2f}, {verdict}",
+        (last, full.loc[last, "crime_beta_error"]),
+        xytext=(-70, 26), textcoords="offset points", ha="right",
         fontsize=8.5, color=style.ACCENT,
         arrowprops=dict(arrowstyle="-", color=style.ACCENT, lw=1.0),
     )
 
-    ax.set_xticks(list(d.index))
+    ax.set_xticks(list(full.index))
     ax.set_ylabel("Crime elasticity of stops")
-    ax.set_ylim(0, 1.45)
+    ax.set_ylim(0, 1.6)
     style.despine(ax)
     style.titled(
-        ax, "Enforcement does not scale with crime",
-        "Below 1 means a neighbourhood with twice the crime gets less than "
-        "twice the enforcement.",
+        ax, "Enforcement tracked recorded crime through 2024",
+        "Elasticity near 1. The dotted line is an earlier model that used 911 "
+        "calls as a control and was retracted.",
     )
-    ax.legend(loc="lower right")
-    style.source_note(fig, "log stops ~ log crimes + log calls + log area; Queen weights")
+    ax.legend(loc="lower left")
+    style.source_note(fig, "Spatial error model, Queen weights")
+    return fig
+
+
+def black_share_chart(diagnostics: pd.DataFrame):
+    """The Black-share effect by year under each robustness check."""
+    variants = {
+        "full": ("Model of record", style.CATEGORICAL[0], "o"),
+        "full + income": ("+ income", style.CATEGORICAL[1], "s"),
+        "full, KNN weights": ("KNN weights", style.CATEGORICAL[2], "^"),
+        "full, no downtown": ("Downtown excluded", style.CATEGORICAL[3], "D"),
+    }
+    fig, ax = style.figure(9.5, 5.8)
+    ax.axhline(0, color=style.MUTED, lw=1.0)
+
+    offsets = np.linspace(-0.24, 0.24, len(variants))
+    for offset, (key, (label, colour, marker)) in zip(offsets, variants.items()):
+        d = diagnostics[diagnostics["variant"] == key].set_index("year")
+        pct = 100 * (np.exp(0.1 * d["black_beta"]) - 1)
+        lo = 100 * (np.exp(0.1 * (d["black_beta"] - 1.96 * d["black_se"])) - 1)
+        hi = 100 * (np.exp(0.1 * (d["black_beta"] + 1.96 * d["black_se"])) - 1)
+        x = d.index + offset
+        ax.vlines(x, lo, hi, color=colour, lw=2.0, alpha=0.55)
+        ax.scatter(x, pct, color=colour, marker=marker, s=46, zorder=3,
+                   label=label)
+
+    years = sorted(diagnostics["year"].unique())
+    ax.set_xticks(years)
+    ax.set_ylabel("Extra stops per 10-point higher Black share (%)")
+    style.despine(ax)
+    style.titled(
+        ax, "More stops where more Black residents live",
+        "Holding recorded crime, population, renter share and area fixed. "
+        "Significant under every check only in 2025.",
+    )
+    ax.legend(loc="upper left", ncol=2)
+    style.source_note(fig, "Spatial error model; bars are 95% intervals")
+    return fig
+
+
+def per_capita_bands_chart(annual: pd.DataFrame, *, year: int):
+    """Stops and crimes per resident across Black-share quarters."""
+    d = annual[(annual["year"] == year) & ~annual["daytime_core"]].copy()
+    d["band"] = pd.qcut(d["share_black_nh"], 4,
+                        labels=["Lowest", "Second", "Third", "Highest"])
+    g = d.groupby("band", observed=True).agg(
+        share=("share_black_nh", "mean"), pop=("pop_total", "sum"),
+        stops=("stops_total", "sum"), crimes=("crimes", "sum"),
+    )
+    g["stops_1k"] = 1000 * g["stops"] / g["pop"]
+    g["crimes_1k"] = 1000 * g["crimes"] / g["pop"]
+
+    fig, ax = style.figure(9.0, 5.6)
+    x = np.arange(len(g))
+    width = 0.36
+    ax.bar(x - width / 2, g["crimes_1k"], width, color=style.CATEGORICAL[2],
+           label="Recorded crimes")
+    ax.bar(x + width / 2, g["stops_1k"], width, color=style.ACCENT,
+           label="Police stops")
+    for i, (_, row) in enumerate(g.iterrows()):
+        ax.annotate(f"{row['stops_1k']:.0f}", (i + width / 2, row["stops_1k"]),
+                    xytext=(0, 3), textcoords="offset points", ha="center",
+                    fontsize=style.LABEL_SIZE, color=style.ACCENT, weight="600")
+        ax.annotate(f"{row['crimes_1k']:.0f}", (i - width / 2, row["crimes_1k"]),
+                    xytext=(0, 3), textcoords="offset points", ha="center",
+                    fontsize=style.LABEL_SIZE, color=style.CATEGORICAL[2])
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{b}\n{s:.0%} Black" for b, s in zip(g.index, g["share"])])
+    ax.set_ylabel("Per 1,000 residents")
+    ax.set_ylim(0, g[["stops_1k", "crimes_1k"]].to_numpy().max() * 1.18)
+    ax.grid(axis="x", visible=False)
+    ax.legend(loc="upper left")
+    style.despine(ax)
+    # Compute the headline from the data rather than asserting it, so the
+    # title stays true if the year or the inputs change.
+    top, third = g.iloc[-1], g.iloc[-2]
+    extra_stops = 100 * (top["stops_1k"] / third["stops_1k"] - 1)
+    crime_gap = 100 * abs(top["crimes_1k"] / third["crimes_1k"] - 1)
+    if crime_gap < 5:
+        title = f"Same crime rate, {extra_stops:.0f}% more stops ({year})"
+        subtitle = ("Neighbourhoods grouped into quarters by Black population "
+                    "share. The top two quarters record the same crime per "
+                    "resident.")
+    else:
+        title = f"Stops and crime per resident by Black population share ({year})"
+        subtitle = (f"Top quarter vs third: {extra_stops:+.0f}% stops, "
+                    f"{crime_gap:.0f}% difference in recorded crime.")
+    style.titled(ax, title, subtitle)
+    style.source_note(fig, "Downtown core excluded; ACS 2019-2023 population")
     return fig
 
 

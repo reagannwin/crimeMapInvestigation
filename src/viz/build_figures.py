@@ -104,7 +104,17 @@ def main() -> int:
     lisa = pd.read_parquet(P / "spatial_lisa.parquet")
     _save(maps.lisa_map(polys, lisa, year=int(lisa["year"].iloc[0])), "08_lisa_clusters")
 
-    print(f"\n>> 8 figures in {FIGURES.relative_to(config.PROJECT_ROOT)}")
+    # 7. Demographic layer (needs src.ingest.build_census).
+    count = 8
+    if "pop_total" in annual.columns:
+        _save(charts.black_share_chart(diagnostics), "09_black_share_effect")
+        _save(charts.per_capita_bands_chart(annual, year=latest),
+              "10_per_capita_bands")
+        count += 2
+    else:
+        print("   (skipping demographic figures: run src.ingest.build_census)")
+
+    print(f"\n>> {count} figures in {FIGURES.relative_to(config.PROJECT_ROOT)}")
     return 0
 
 

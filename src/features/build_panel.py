@@ -48,6 +48,12 @@ def main() -> int:
     )
 
     annual = pn.annual_summary(panel)
+    demo_path = config.DATA_PROCESSED / "neighborhood_demographics.parquet"
+    if demo_path.exists():
+        annual = pn.add_per_capita(annual, pd.read_parquet(demo_path))
+        print("   per-capita rates added from ACS 2019-2023")
+    else:
+        print("   no demographics yet; run src.ingest.build_census for per-capita rates")
     annual.to_parquet(
         config.DATA_PROCESSED / f"enforcement_annual{suffix}.parquet", index=False
     )
@@ -105,6 +111,26 @@ def main() -> int:
         )
         print("   (empirical-Bayes smoothed, so thin cells cannot top the list)")
         print(change.head(10).round(3).to_string())
+
+    if "pop_total" in annual.columns:
+        latest = annual[(annual["year"] == last) & ~annual["daytime_core"]].copy()
+        latest["black_share_band"] = pd.qcut(
+            latest["share_black_nh"], 4,
+            labels=["lowest 25%", "second", "third", "highest 25%"],
+        )
+        bands = latest.groupby("black_share_band", observed=True).agg(
+            neighbourhoods=("neighborhood", "size"),
+            share_black=("share_black_nh", "mean"),
+            residents=("pop_total", "sum"),
+            stops=("stops_total", "sum"),
+            crimes=("crimes", "sum"),
+        )
+        bands["stops_per_1k"] = 1000 * bands["stops"] / bands["residents"]
+        bands["crimes_per_1k"] = 1000 * bands["crimes"] / bands["residents"]
+        bands["stops_per_crime"] = bands["stops"] / bands["crimes"]
+        print(f"\n>> {last}, per 1,000 residents, by neighbourhood Black-population "
+              "share (downtown core excluded)")
+        print(bands.round(3).to_string())
 
     print("\n>> caveats")
     for line in (

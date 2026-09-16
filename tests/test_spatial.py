@@ -21,6 +21,8 @@ from src.bias import spatial as sp
 warnings.filterwarnings("ignore")
 
 GRID = 5  # 5x5 lattice -> 25 units, enough for stable permutation inference
+# The synthetic cross-sections below carry these columns only.
+SYNTH_X = ("log_crimes", "log_calls", "log_area_km2")
 
 
 @pytest.fixture(scope="module")
@@ -140,14 +142,16 @@ class TestElasticityTest:
 
     def test_recovers_a_proportional_elasticity(self, lattice, weights):
         df = self._fit(1.0).assign(neighborhood=lattice["neighborhood"].values)
-        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights)
+        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights,
+                     x_names=SYNTH_X)
         ols = fit.elasticity_test().set_index("model").loc["ols"]
         assert ols["beta"] == pytest.approx(1.0, abs=0.1)
         assert bool(ols["proportional_at_05"])
 
     def test_detects_a_sub_proportional_elasticity(self, lattice, weights):
         df = self._fit(0.5).assign(neighborhood=lattice["neighborhood"].values)
-        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights)
+        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights,
+                     x_names=SYNTH_X)
         ols = fit.elasticity_test().set_index("model").loc["ols"]
         assert ols["beta"] == pytest.approx(0.5, abs=0.1)
         assert not bool(ols["proportional_at_05"])
@@ -157,8 +161,31 @@ class TestElasticityTest:
         """A beta of 1 is highly significant against 0 but proportional
         against 1. Testing the wrong null answers the wrong question."""
         df = self._fit(1.0).assign(neighborhood=lattice["neighborhood"].values)
-        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights)
+        fit = sp.fit(df.sort_values("neighborhood").reset_index(drop=True), weights,
+                     x_names=SYNTH_X)
         ols = fit.elasticity_test().set_index("model").loc["ols"]
         assert ols["p_vs_1"] > 0.05
         z_vs_zero = ols["beta"] / ols["se"]
         assert abs(z_vs_zero) > 5
+
+
+class TestSpecifications:
+    def test_model_of_record_excludes_calls(self):
+        """911 calls are a bad control: 0.92-correlated with crime and largely
+        caused by it. Including them drove the retracted sub-proportional
+        result, so the model of record must not."""
+        assert "log_calls" not in sp.SPECS[sp.MODEL_OF_RECORD]
+
+    def test_model_of_record_controls_for_population_and_race(self):
+        spec = sp.SPECS[sp.MODEL_OF_RECORD]
+        assert {"log_crimes", "log_pop", "share_black_nh"} <= set(spec)
+
+    def test_income_check_extends_the_model_of_record(self):
+        full, income = sp.SPECS["full"], sp.SPECS["full_income"]
+        assert set(full) < set(income)
+        assert "log_income" in income
+
+    def test_default_fit_uses_the_model_of_record(self):
+        import inspect
+        default = inspect.signature(sp.fit).parameters["x_names"].default
+        assert default == sp.SPECS[sp.MODEL_OF_RECORD]

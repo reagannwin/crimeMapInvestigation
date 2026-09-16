@@ -324,6 +324,34 @@ def annual_summary(panel: pd.DataFrame, *, min_crimes: int = 24) -> pd.DataFrame
     return agg
 
 
+PER_1K = ("stops_total", "stops_proactive", "stops_reactive", "crimes", "calls")
+# Commercial core: a large daytime population that residents do not measure,
+# so per-resident rates there are inflated for reasons unrelated to how
+# residents are policed. Downtown West runs 218 stops per 1,000 residents.
+DAYTIME_CORE = frozenset({"Downtown West", "Downtown East", "North Loop"})
+
+
+def add_per_capita(annual: pd.DataFrame, demographics: pd.DataFrame) -> pd.DataFrame:
+    """Attach ACS population and per-1,000-resident rates.
+
+    ACS 2019-2023 population is applied to every year. ``daytime_core`` marks
+    neighbourhoods whose per-resident rates should not be ranked against the
+    rest of the city.
+    """
+    demo = demographics[
+        ["neighborhood", "pop_total", "share_black_nh", "share_white_nh",
+         "share_renter", "median_hh_income_approx"]
+    ]
+    out = annual.merge(demo, on="neighborhood", how="left")
+    if out["pop_total"].isna().any():
+        missing = sorted(out.loc[out["pop_total"].isna(), "neighborhood"].unique())
+        raise ValueError(f"no population for: {missing}")
+    for col in PER_1K:
+        out[f"{col}_per_1k"] = 1000 * out[col] / out["pop_total"]
+    out["daytime_core"] = out["neighborhood"].isin(DAYTIME_CORE)
+    return out
+
+
 def load_sources(*, with_imputed_initiation: bool = False) -> dict[str, pd.DataFrame]:
     """Load the interim frames the panel needs.
 

@@ -9,12 +9,10 @@ space and the model is misspecified.
 
 The usual warning is that OLS standard errors will be too small. That is the
 textbook consequence of an omitted spatial **lag**, and it is worth checking --
-but it is not what happens here. Fitting these data, the spatial error model's
-standard errors come out *smaller* than OLS, not larger. The damage shows up
-instead in the point estimates: the crime elasticity falls from 1.09 under OLS
-to 0.66 once spatial dependence is modelled. So the reason to do this is not a
-reliable direction of bias in the standard errors; it is that OLS is answering
-the wrong question when residual Moran's I is 0.62.
+but these data do not reliably show it: the spatial error model's standard
+errors are often *smaller* than OLS. The reason to model dependence here is
+that residual Moran's I is significant in most specifications, so OLS is
+misspecified and its point estimates cannot be taken at face value.
 
 The question this module answers is therefore not "is there a spatial pattern"
 -- of course there is -- but "does the finding survive being modelled
@@ -36,18 +34,34 @@ What it does
 
 Specification
 -------------
-Log-log, so coefficients read as elasticities:
+Log-log in the counts, so the crime coefficient reads as an elasticity:
 
-    log(stops) ~ log(crimes) + log(calls) + log(area)
+    log(stops) ~ log(crimes) + log(pop) + share_black + share_renter + log(area)
 
 ``b_crime = 1`` means enforcement scales proportionally with recorded crime.
-Below 1 means enforcement is spread more evenly than crime; above 1 means it is
-concentrated more than crime. That is the project's question stated as a
-parameter.
+``share_black`` asks the disproportionality question directly: conditional on
+crime, population, tenure and size, do neighbourhoods with a larger Black
+population receive more stops? Its coefficient is a semi-elasticity; a value
+of ``b`` means roughly ``exp(0.1 * b) - 1`` more stops per 10-point higher
+Black share.
 
-Population is deliberately absent -- the ACS pull is still blocked -- so
-``calls`` carries the demand signal and ``area`` absorbs size. Read the crime
-elasticity as "conditional on demand and size", not as a causal effect.
+Why 911 calls are NOT a control
+-------------------------------
+An earlier version, written before the ACS data was available, used
+``log(calls)`` in place of population. That was a bad control. Calls are
+largely a *consequence* of crime and correlate with it at 0.92, so the model
+attributed most of crime's effect to calls and reported the leftover as the
+crime elasticity: 0.34-0.78, read as "enforcement is sub-proportional to
+crime". Replacing calls with population puts the elasticity at 0.97-1.07 in
+every year 2021-2024. Enforcement tracks recorded crime proportionally; the
+earlier finding was an artefact and is retracted. The calls specification is
+kept in :data:`SPECS` only so the artefact stays reproducible.
+
+Remaining limits: demographics are ACS 2019-2023 estimates held fixed across
+years; share_black and income correlate at -0.57, so the ``full_income``
+specification is the check on whether race is proxying for income; and the
+downtown core has a daytime population that residents do not measure, which
+the ``drop_core`` option tests.
 """
 from __future__ import annotations
 
@@ -65,6 +79,22 @@ DEFAULT_YEAR = 2025
 LOG_OFFSET = 1.0
 PERMUTATIONS = 999
 SEED = 0
+
+# Named specifications. ``full`` is the model of record.
+SPECS: dict[str, tuple[str, ...]] = {
+    # Retracted: calls are a bad control (see module docstring).
+    "calls": ("log_crimes", "log_calls", "log_area_km2"),
+    "pop": ("log_crimes", "log_pop", "log_area_km2"),
+    "full": ("log_crimes", "log_pop", "share_black_nh", "share_renter",
+             "log_area_km2"),
+    # Checks whether share_black is standing in for income.
+    "full_income": ("log_crimes", "log_pop", "share_black_nh", "share_renter",
+                    "log_area_km2", "log_income"),
+}
+MODEL_OF_RECORD = "full"
+
+# Commercial core: residents badly measure the population policed here.
+DOWNTOWN_CORE = ("Downtown West", "Downtown East", "North Loop")
 
 
 @dataclass
@@ -214,7 +244,7 @@ def fit(
     w,
     *,
     y_name: str = "log_stops_total",
-    x_names: tuple[str, ...] = ("log_crimes", "log_calls", "log_area_km2"),
+    x_names: tuple[str, ...] = SPECS[MODEL_OF_RECORD],
     year: int = DEFAULT_YEAR,
 ) -> SpatialFit:
     """Fit OLS, run spatial diagnostics, then fit lag and error models."""
@@ -248,8 +278,18 @@ def fit(
     )
 
 
+DEMOGRAPHIC_COLS = (
+    "pop_total", "share_black_nh", "share_white_nh", "share_renter",
+    "median_hh_income_approx",
+)
+
+
 def load_annual(*, imputed: bool = False) -> pd.DataFrame:
-    """Annual panel joined to polygon area, ready for the cross-section."""
+    """Annual panel joined to polygon area and ACS demographics.
+
+    The demographics are ACS 2019-2023 estimates, so the same values attach to
+    every year of the panel.
+    """
     suffix = "_imputed" if imputed else ""
     annual = pd.read_parquet(
         config.DATA_PROCESSED / f"enforcement_annual{suffix}.parquet"
@@ -260,6 +300,22 @@ def load_annual(*, imputed: bool = False) -> pd.DataFrame:
     ]
     out = annual.merge(area, on="neighborhood", how="left")
     out["log_area_km2"] = np.log(out["area_km2"])
+
+    demo_path = config.DATA_PROCESSED / "neighborhood_demographics.parquet"
+    if not demo_path.exists():
+        raise FileNotFoundError(
+            f"{demo_path.name} is missing; run src.ingest.build_census first"
+        )
+    demo = pd.read_parquet(demo_path, columns=["neighborhood", *DEMOGRAPHIC_COLS])
+    # The annual panel may already carry these (build_panel adds them); take
+    # them from the demographics file only, never merge them twice.
+    out = out.drop(columns=[c for c in DEMOGRAPHIC_COLS if c in out.columns])
+    out = out.merge(demo, on="neighborhood", how="left")
+    if out["pop_total"].isna().any():
+        missing = sorted(out.loc[out["pop_total"].isna(), "neighborhood"].unique())
+        raise ValueError(f"no demographics for: {missing}")
+    out["log_pop"] = np.log(out["pop_total"])
+    out["log_income"] = np.log(out["median_hh_income_approx"])
     return out
 
 

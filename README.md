@@ -16,11 +16,30 @@ whether police activity tracks measured crime or diverges from it.
 | 5a — Gunfire event de-duplication | done |
 | 5b — Search hit-rate (outcome) test | done |
 | 5c — Enforcement panel | done |
-| 5d — Per-capita rates | blocked on ACS demographics (needs a Census API key) |
+| 5d — Per-capita rates + demographic controls | done |
 | 6 — Spatial models | done |
 | 7 — Figures | done |
 
 ## Quickstart
+
+**Run it in Docker.** On the development machine, Windows Smart App Control
+blocks the unsigned compiled parts of pyproj, pyogrio, scikit-learn, libpysal,
+esda and spreg, so most of the pipeline cannot run natively. The Linux image
+is not subject to that policy.
+
+```bash
+docker build -t crimemap:latest .
+scripts/docker-run.sh python -m pytest tests/ -q
+CENSUS_API_KEY=... scripts/docker-run.sh python -m src.ingest.build_census
+scripts/docker-run.sh python -m src.bias.build_spatial
+```
+
+`scripts/docker-run.sh` mounts the project at `/app` and `~/Downloads`
+read-only at `/data/source` (override with `CRIME_SOURCE_DIR_HOST`). The Census
+key is forwarded from your shell at run time and never written to the image or
+any file.
+
+Native, where the policy does not apply:
 
 ```bash
 python -m venv .venv
@@ -47,10 +66,11 @@ about 40 seconds; reading the Parquet takes about one.
 | `Minneapolis_Neighborhoods` (ArcGIS) | 87 | — | Polygon geometry, EPSG:26915 |
 | ACS 5-year block groups | 428 | 2019–2023 | Demographic denominators |
 
-**ACS requires a free Census API key.** Unkeyed requests now 302 to a
-"Missing Key" page. Get one at https://api.census.gov/data/key_signup.html and
-set `CENSUS_API_KEY`, then run `python -m src.ingest.build_census`. The
-block-group geometry half needs no key and is verified working.
+**ACS requires a free Census API key** (https://api.census.gov/data/key_signup.html),
+and the key must be activated from the signup email before it works. Block-group
+boundaries come from the TIGERweb REST service rather than the TIGER shapefile,
+because reading shapefiles needs GDAL. Interpolated city population:
+**426,269** (Minneapolis is about 425,000).
 
 ## Findings that constrain the analysis
 
@@ -189,32 +209,64 @@ reads as a collapse (stops 2026-06: 1,037 against ~2,400; force 2026-09: 154
 against ~8,200). Left in, each becomes a fake downward trend.
 
 **Neighbourhoods are not independent observations, and OLS is misspecified.**
-Moran's I on OLS residuals is significant in **9 of 10** year x weights
-specifications. Robust LM tests select a spatial **error** model in most years.
+Under the model of record, Moran's I on OLS residuals is significant
+(p = 0.001) in **every year 2021–2025**, and robust LM tests select a spatial
+**error** model in every year.
 
-The textbook warning is that OLS standard errors will be too small. That is not
-what happens here — the spatial error model's standard errors come out
-*smaller*. The damage is in the **point estimates** instead.
+The textbook warning is that OLS standard errors will be too small. These data
+do not reliably show that — the spatial error model's standard errors are often
+*smaller* — so the reason to model dependence is that OLS is misspecified, not a
+known direction of bias.
 
-**Enforcement is sub-proportional to recorded crime.** In a log-log model
-(`log stops ~ log crimes + log calls + log area`), an elasticity of 1 means
-proportional. The spatial-error estimate runs **0.34–0.78 across 2021–2024**,
-below 1 in every specification and significantly so in most. A neighbourhood
-with twice the crime does not get twice the enforcement.
+**Retracted: "enforcement is sub-proportional to crime."** An earlier model,
+fitted before the ACS data was available, used 911 calls as a control and put
+the crime elasticity at 0.34–0.78. Calls are largely *caused by* crime and
+correlate with it at 0.92, so they absorbed most of crime's effect — a bad
+control. With population in their place:
 
-Note the test is against `beta = 1`, not `beta = 0`. That enforcement rises
-with crime is uncontroversial; whether it rises *proportionally* is the
-question.
+**Enforcement tracks recorded crime proportionally through 2024.** The
+spatial-error crime elasticity is **0.97–1.07 in every year 2021–2024**, never
+distinguishable from 1. It falls to 0.72 in 2025, but that interval still
+reaches 1.
 
-**2025 breaks the model.** R² falls from 0.89–0.93 (2021–2024) to **0.46**,
-residual Moran's I jumps from ~0.16 to **0.62**, and the OLS elasticity leaps
-to 1.09. Crime, demand and size explain far less of where enforcement went in
-2025 than in any prior year — consistent with the proactive surge the panel
-found.
+The test is against `beta = 1`, not `beta = 0`: that enforcement rises with
+crime is uncontroversial; whether it rises *proportionally* is the question.
+
+**More stops where more Black residents live, beyond what crime explains.**
+Model of record:
+`log stops ~ log crimes + log pop + share Black + share renter + log area`.
+
+| | 2021 | 2022 | 2023 | 2024 | 2025 |
+|---|---:|---:|---:|---:|---:|
+| Extra stops per 10-pt higher Black share | 2% | 4% | 6% | **8%** | **23%** |
+| + income control | 2% | 4% | 3% | 6% (n.s.) | **28%** |
+| KNN weights | 2% | 5% | 5% | **7%** | **20%** |
+| Downtown core excluded | 3% | 4% | 7% | **9%** | **26%** |
+
+Bold = significant at 5%. The effect grows every year. It is significant under
+every check only in **2025**; in 2024 it cannot be separated from income, and
+2021–2023 are not significant.
+
+Descriptively, for 2025 with the downtown core excluded, the two neighbourhood
+quarters with the highest Black population share record the **same crime per
+resident (56.8 per 1,000)**, yet the top quarter (42% Black) has **83.6 stops
+per 1,000 residents against 59.7** in the third (18% Black) — **40% more**.
+
+Limits: cross-sectional associations, not causal effects; ACS 2019–2023
+demographics are held fixed across years; the 2025 model's residuals remain
+strongly autocorrelated (Moran's I 0.61), so 2025 is the weakest fit even
+though it carries the strongest result.
+
+**Per-resident rates are misleading downtown.** Downtown West runs 218 stops
+per 1,000 residents because its activity comes from commuters and visitors.
+Downtown West, Downtown East and North Loop are flagged `daytime_core` and
+excluded from per-resident comparisons and from the robustness check above.
 
 ## Layout
 
 ```
+Dockerfile               Linux runtime (see Quickstart)
+scripts/docker-run.sh    run any pipeline command in the container
 src/
   config.py              CRS, windows, thresholds, taxonomies — no magic numbers elsewhere
   clean/
@@ -243,7 +295,7 @@ src/
     charts.py            trends, hit rates, elasticity
     build_figures.py     Phase 7 runner -> reports/figures
   bias/
-    spatial.py           Queen/KNN weights, Moran's I, LM tests, lag + error models
+    spatial.py           weights, Moran's I, LM tests, named specs, lag + error models
     build_spatial.py     Phase 6 runner
     sensor_footprint.py  coverage mask, evidence guard, parameter sweep
     build_footprint.py   Phase 4 runner
