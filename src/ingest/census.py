@@ -48,8 +48,10 @@ STATE_FIPS = "27"       # Minnesota
 COUNTY_FIPS = "053"     # Hennepin (contains all of Minneapolis)
 
 API_BASE = "https://api.census.gov/data"
-TIGER_BG = (
-    "https://www2.census.gov/geo/tiger/TIGER{year}/BG/tl_{year}_{state}_bg.zip"
+# Layer 10 of the ACS vintage map service is "Census Block Groups".
+TIGERWEB_BG = (
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/"
+    "tigerWMS_ACS{year}/MapServer/10"
 )
 
 # ACS "jam values": sentinels in the median-income field meaning the estimate
@@ -151,13 +153,29 @@ def fetch_acs(
 def fetch_block_group_geometry(
     *, year: int = ACS_YEAR, verbose: bool = True
 ) -> gpd.GeoDataFrame:
-    """TIGER/Line block group polygons for Minnesota. No API key required."""
-    url = TIGER_BG.format(year=year, state=STATE_FIPS)
+    """Block group polygons for Hennepin County, from the TIGERweb REST service.
+
+    Not from the TIGER/Line shapefile. Reading a zipped shapefile goes through
+    GDAL, and on this machine Windows Application Control blocks the GDAL DLL
+    that pyogrio bundles. TIGERweb serves the same boundaries as GeoJSON, which
+    geopandas parses with shapely alone -- no GDAL, and no need to weaken a
+    system security setting to get a map. It also filters server-side, so only
+    Hennepin's 1,098 block groups travel rather than all of Minnesota.
+    No API key required.
+    """
+    from src.ingest.arcgis import fetch_geoframe
+
+    url = TIGERWEB_BG.format(year=year)
     if verbose:
-        print(f"   TIGER {year} block groups: {url}")
-    gdf = gpd.read_file(url)
-    gdf = gdf[gdf["COUNTYFP"] == COUNTY_FIPS].copy()
-    gdf = gdf[["GEOID", "ALAND", "geometry"]].to_crs(config.CRS_PROJECTED)
+        print(f"   TIGERweb ACS {year} block groups: {url}")
+    gdf = fetch_geoframe(
+        url,
+        where=f"STATE='{STATE_FIPS}' AND COUNTY='{COUNTY_FIPS}'",
+        out_fields="GEOID,AREALAND",
+        verbose=verbose,
+    )
+    gdf = gdf.rename(columns={"AREALAND": "ALAND"})[["GEOID", "ALAND", "geometry"]]
+    gdf["GEOID"] = gdf["GEOID"].astype(str)
     if verbose:
         print(f"   {len(gdf):,} Hennepin County block groups")
     return gdf

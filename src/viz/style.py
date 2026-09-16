@@ -79,7 +79,9 @@ def apply() -> None:
         "savefig.dpi": 200,
         "savefig.bbox": "tight",
         "font.family": "sans-serif",
-        "font.sans-serif": ["Segoe UI", "Helvetica Neue", "Arial", "DejaVu Sans"],
+        # Inter is installed in the Docker image; Segoe UI covers Windows.
+        "font.sans-serif": ["Inter", "Segoe UI", "Helvetica Neue", "Arial",
+                            "DejaVu Sans"],
         "text.color": INK,
         "axes.edgecolor": HAIRLINE,
         "axes.labelcolor": INK,
@@ -107,7 +109,7 @@ def titled(ax, title: str, subtitle: str | None = None) -> None:
     The subtitle is where the finding goes. A title that says only what is
     plotted makes the reader derive the point themselves.
     """
-    ax.set_title(title, pad=18 if subtitle else 10)
+    ax.set_title(title, pad=24 if subtitle else 10)
     if subtitle:
         ax.text(
             0.0, 1.02, subtitle, transform=ax.transAxes,

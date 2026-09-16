@@ -70,12 +70,22 @@ def _get(url: str, params: dict[str, Any]) -> dict[str, Any]:
     raise ArcGISError(f"{url}: failed after {MAX_RETRIES} attempts: {last}")
 
 
-def layer_info(url: str) -> LayerInfo:
+def layer_info(url: str, where: str = "1=1") -> LayerInfo:
     meta = _get(url, {"f": "json"})
-    count = _get(url + "/query", {"where": "1=1", "returnCountOnly": "true", "f": "json"})
+    # Count with the caller's filter, or a filtered pull is compared
+    # against the whole layer and trips a false mismatch warning.
+    count = _get(url + "/query", {"where": where, "returnCountOnly": "true", "f": "json"})
+    # Hosted FeatureServers expose objectIdField; MapServers such as TIGERweb
+    # often do not, and name the OID column "OID". Read it from the schema
+    # rather than assuming, or orderByFields points at a column that is absent.
+    oid = meta.get("objectIdField") or next(
+        (f["name"] for f in meta.get("fields", [])
+         if f.get("type") == "esriFieldTypeOID"),
+        "OBJECTID",
+    )
     return LayerInfo(
         name=meta.get("name", "?"),
-        oid_field=meta.get("objectIdField", "OBJECTID"),
+        oid_field=oid,
         max_record_count=int(meta.get("maxRecordCount", 1000)),
         geometry_type=meta.get("geometryType"),
         count=int(count.get("count", 0)),
@@ -92,7 +102,7 @@ def iter_geojson_pages(
     verbose: bool = True,
 ) -> Iterator[dict[str, Any]]:
     """Yield GeoJSON FeatureCollection pages until the layer is exhausted."""
-    info = layer_info(url)
+    info = layer_info(url, where)
     size = min(page_size or info.max_record_count, info.max_record_count)
     if verbose:
         print(f"   {info.name}: {info.count:,} features, page size {size:,}")

@@ -1,6 +1,7 @@
 """Central configuration. No magic numbers anywhere else in the codebase."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 # --------------------------------------------------------------------------
@@ -11,8 +12,9 @@ DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_INTERIM = PROJECT_ROOT / "data" / "interim"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 
-# Source CSVs as delivered (Downloads). Copied into data/raw on first ingest.
-SOURCE_DIR = Path.home() / "Downloads"
+# Source CSVs as delivered. Defaults to ~/Downloads; CRIME_SOURCE_DIR overrides
+# it, which the Docker setup uses to point at a read-only mount.
+SOURCE_DIR = Path(os.environ.get("CRIME_SOURCE_DIR") or Path.home() / "Downloads")
 
 SOURCE_FILES = {
     "calls_911": "Incidents_Reported_911.csv",
